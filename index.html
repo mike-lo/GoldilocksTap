@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Goldilocks Tap</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .screen { position: fixed; inset: 0; display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  #setup-screen { padding: 2rem; overflow-y: auto; background: #fafafa; }
+  #setup-screen .container { max-width: 560px; margin: 0 auto; width: 100%; }
+  .app-header { margin-bottom: 2.5rem; }
+  .app-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 0.4rem; }
+  .app-subtitle { font-size: 0.9rem; color: #666; line-height: 1.5; }
+
+  .form-section { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+  .form-section h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; font-weight: 600; margin-bottom: 1rem; }
+  .form-row { margin-bottom: 1rem; }
+  .form-row:last-child { margin-bottom: 0; }
+  .form-row label { display: block; font-size: 0.85rem; color: #444; margin-bottom: 0.4rem; }
+  .form-row input[type="text"], .form-row input[type="number"], .form-row select {
+    width: 100%; padding: 0.65rem 0.8rem; border: 1px solid #d4d4d4; border-radius: 6px;
+    font-size: 0.9rem; background: white; font-family: inherit;
+  }
+  .form-row input:focus, .form-row select:focus { outline: none; border-color: #1a1a1a; }
+  .inline-input-group { display: flex; gap: 0.5rem; align-items: center; }
+  .inline-input-group input { flex: 1; }
+  .small-btn { padding: 0.65rem 0.9rem; border: 1px solid #d4d4d4; background: white; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-family: inherit; white-space: nowrap; }
+  .small-btn:hover { background: #f5f5f5; }
+
+  .radio-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .radio-option { flex: 1; min-width: 80px; }
+  .radio-option input { display: none; }
+  .radio-option label {
+    display: block; padding: 0.6rem 0.5rem; border: 1px solid #d4d4d4; border-radius: 6px;
+    text-align: center; cursor: pointer; font-size: 0.85rem; background: white;
+    transition: border-color 0.15s, background 0.15s; margin: 0;
+  }
+  .radio-option input:checked + label { border-color: #1a1a1a; background: #1a1a1a; color: white; }
+
+  .size-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem; }
+  .size-chip {
+    padding: 0.4rem 0.75rem; border: 1px solid #d4d4d4; border-radius: 999px;
+    background: white; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .size-chip:hover { border-color: #888; }
+  .size-chip.selected { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+  .size-chip.custom { padding-right: 0.4rem; }
+  .size-chip-remove { margin-left: 0.4rem; color: #aaa; font-weight: bold; }
+  .size-chip.custom.selected .size-chip-remove { color: white; }
+
+  .threshold-config { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .threshold-config-item { display: flex; align-items: center; gap: 0.4rem; flex: 1; min-width: 130px; }
+  .threshold-config-item label { font-size: 0.78rem; color: #666; margin-bottom: 0; white-space: nowrap; }
+  .threshold-config-item input { width: 64px !important; padding: 0.4rem 0.5rem !important; text-align: center; }
+
+  .hint { font-size: 0.78rem; color: #888; margin-top: 0.4rem; line-height: 1.5; }
+
+  .btn { width: 100%; padding: 0.9rem 1rem; border: none; border-radius: 6px; background: #1a1a1a; color: white; font-size: 0.95rem; font-weight: 500; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .btn:hover { background: #333; }
+  .btn:disabled { background: #ccc; cursor: not-allowed; }
+  .btn.secondary { background: white; color: #1a1a1a; border: 1px solid #d4d4d4; }
+  .btn.secondary:hover { background: #f5f5f5; }
+
+  .device-info { background: #f0f0f0; border-radius: 6px; padding: 0.8rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; color: #555; line-height: 1.6; }
+  .device-info strong { color: #1a1a1a; }
+
+  #test-screen { background: #fafafa; }
+  .test-header { height: 48px; border-bottom: 1px solid #e5e5e5; background: white; display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; font-size: 0.8rem; color: #666; flex-shrink: 0; }
+  .test-progress-bar { height: 3px; background: #1a1a1a; transition: width 0.2s; }
+  .test-progress-track { position: absolute; top: 48px; left: 0; right: 0; height: 3px; background: #e5e5e5; }
+  .test-area { flex: 1; position: relative; overflow: hidden; touch-action: none; }
+  .target { position: absolute; background: #1a1a1a; border-radius: 4px; cursor: pointer; touch-action: none; }
+  .target.feedback-hit { background: #16a34a; transition: background 0.05s; }
+  .target.feedback-miss { background: #dc2626; transition: background 0.05s; }
+  .miss-marker { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #dc2626; pointer-events: none; transform: translate(-50%, -50%); animation: missPulse 0.4s ease-out forwards; }
+  @keyframes missPulse { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(2); opacity: 0; } }
+  .test-instruction { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #888; font-size: 0.95rem; pointer-events: none; line-height: 1.7; }
+
+  #results-screen { padding: 2rem 1.5rem; overflow-y: auto; background: #fafafa; }
+  #results-screen .container { max-width: 720px; margin: 0 auto; width: 100%; }
+  .verdict, .stats-section, .heatmap-section, .zone-section, .curve-section { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+  .verdict h2, .stats-section h2, .heatmap-section h2, .zone-section h2, .curve-section h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; font-weight: 600; margin-bottom: 1rem; }
+
+  .verdict-warning { background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 0.75rem 1rem; font-size: 0.85rem; color: #78350f; margin-bottom: 1rem; line-height: 1.5; }
+
+  .threshold { display: flex; align-items: center; gap: 1rem; padding: 0.8rem 0; border-top: 1px solid #f0f0f0; }
+  .threshold:first-of-type { border-top: none; }
+  .threshold-icon { width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.9rem; flex-shrink: 0; color: white; }
+  .threshold-icon.min { background: #f59e0b; }
+  .threshold-icon.sweet { background: #16a34a; }
+  .threshold-icon.max { background: #6366f1; }
+  .threshold-text { flex: 1; }
+  .threshold-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #888; margin-bottom: 0.15rem; }
+  .threshold-value { font-size: 1.1rem; font-weight: 500; }
+  .threshold-detail { font-size: 0.78rem; color: #666; margin-top: 0.15rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { padding: 0.65rem 0.6rem; text-align: right; border-bottom: 1px solid #f0f0f0; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #888; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.size-cell { font-weight: 500; }
+  .hit-rate-bar { display: inline-block; width: 50px; height: 4px; background: #f0f0f0; border-radius: 2px; margin-left: 0.5rem; vertical-align: middle; position: relative; overflow: hidden; }
+  .hit-rate-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #16a34a; }
+
+  .zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 0.75rem; aspect-ratio: 16/10; max-width: 400px; }
+  .zone-cell { background: #f0f0f0; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.5rem; color: #444; position: relative; }
+  .zone-cell-rate { font-size: 1.1rem; font-weight: 600; }
+  .zone-cell-name { font-size: 0.65rem; color: #888; margin-top: 0.15rem; text-align: center; }
+  .zone-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; padding: 0.75rem 0; border-top: 1px solid #f0f0f0; margin-top: 0.5rem; }
+  .zone-summary-item { text-align: center; }
+  .zone-summary-label { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+  .zone-summary-value { font-size: 1.1rem; font-weight: 500; margin-top: 0.2rem; }
+
+  .scatter-svg, .curve-svg { width: 100%; border: 1px solid #e5e5e5; border-radius: 4px; background: #fafafa; }
+  .heatmap-legend { display: flex; gap: 1rem; margin-top: 0.75rem; font-size: 0.78rem; color: #666; }
+  .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.4rem; vertical-align: middle; }
+
+  .actions { display: flex; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+  .actions .btn { flex: 1; min-width: 130px; }
+
+  /* Between screen */
+  #between-screen { background: #fafafa; align-items: center; justify-content: center; padding: 2rem; }
+  .between-content { max-width: 480px; width: 100%; }
+  .between-badge { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; font-weight: 600; margin-bottom: 0.75rem; }
+  .between-stat { font-size: 2.5rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+  .between-meta { font-size: 0.85rem; color: #666; margin-bottom: 1.5rem; line-height: 1.5; }
+  .between-divider { border: none; border-top: 1px solid #e5e5e5; margin: 1.5rem 0; }
+
+  /* Compare screen */
+  #compare-screen { padding: 2rem 1.5rem; overflow-y: auto; background: #fafafa; }
+  #compare-screen .container { max-width: 900px; margin: 0 auto; width: 100%; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .compare-card { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 1.5rem; }
+  .compare-card.full { margin-bottom: 1rem; }
+  .compare-card h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #888; font-weight: 600; margin-bottom: 1rem; }
+  .run-a-accent { border-top: 3px solid #1a1a1a; }
+  .run-b-accent { border-top: 3px solid #3b82f6; }
+  .compare-overall { font-size: 2.5rem; font-weight: 600; letter-spacing: -0.02em; }
+  .compare-overall-meta { font-size: 0.82rem; color: #666; margin-top: 0.25rem; }
+  .compare-run-label { font-size: 0.82rem; color: #666; margin-bottom: 0.75rem; }
+  .compare-delta { display: inline-block; font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: 0.4rem; vertical-align: middle; }
+  .compare-delta.better { background: #dcfce7; color: #166534; }
+  .compare-delta.worse { background: #fee2e2; color: #991b1b; }
+  .compare-curve-legend { display: flex; gap: 1.5rem; margin-top: 0.75rem; font-size: 0.78rem; color: #666; }
+  .legend-line { display: inline-block; width: 20px; height: 2px; margin-right: 0.4rem; vertical-align: middle; }
+
+  /* Run 2 banner in setup */
+  .run2-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.85rem; color: #1d4ed8; line-height: 1.5; display: none; }
+
+  @media print {
+    body { background: white; overflow: visible; }
+    .screen { position: static; display: none; }
+    .screen.active { display: block; }
+    #results-screen { padding: 1rem; overflow: visible; }
+    .actions { display: none; }
+    .verdict, .stats-section, .heatmap-section, .zone-section, .curve-section { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+  }
+
+  @media (max-width: 600px) {
+    .compare-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 480px) {
+    #setup-screen { padding: 1.5rem 1rem; }
+    #results-screen, #compare-screen { padding: 1.5rem 1rem; }
+    .form-section, .verdict, .stats-section, .heatmap-section, .zone-section, .curve-section, .compare-card { padding: 1.25rem; }
+    th, td { padding: 0.55rem 0.45rem; font-size: 0.78rem; }
+    .actions { flex-direction: column; }
+    .actions .btn { width: 100%; }
+    .threshold-config-item { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="screen active" id="setup-screen">
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Goldilocks Tap</div>
+      <div class="app-subtitle">A simple tool that measures how reliably you can hit targets of different sizes on this screen. Built to validate touch target dimensions empirically rather than relying on theory alone.</div>
+    </div>
+    <div class="device-info" id="device-info">Detecting device…</div>
+    <div class="run2-banner" id="run2-banner"><strong>Run 2 setup</strong> — change conditions below (e.g. put on gloves), then start the second test.</div>
+
+    <div class="form-section">
+      <h2>Tester</h2>
+      <div class="form-row">
+        <label for="tester-name">Name or nickname</label>
+        <input type="text" id="tester-name" placeholder="e.g. Tester 1" maxlength="50">
+        <div class="hint">Saved in the export, not transmitted anywhere.</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Finger</h2>
+      <div class="form-row">
+        <label>Which finger will you use?</label>
+        <div class="radio-group">
+          <div class="radio-option"><input type="radio" id="finger-thumb" name="finger" value="thumb"><label for="finger-thumb">Thumb</label></div>
+          <div class="radio-option"><input type="radio" id="finger-index" name="finger" value="index" checked><label for="finger-index">Index</label></div>
+          <div class="radio-option"><input type="radio" id="finger-middle" name="finger" value="middle"><label for="finger-middle">Middle</label></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label for="finger-width">Finger pad width (mm)</label>
+        <input type="number" id="finger-width" min="8" max="30" step="1" value="16">
+        <div class="hint">Typical values: thumb ~20mm, index ~16mm, pinky ~12mm. Mitsubishi spec assumes 10mm.</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Conditions</h2>
+      <div class="form-row">
+        <label>Wearing gloves?</label>
+        <div class="radio-group">
+          <div class="radio-option"><input type="radio" id="gloves-none" name="gloves" value="none" checked><label for="gloves-none">None</label></div>
+          <div class="radio-option"><input type="radio" id="gloves-thin" name="gloves" value="thin"><label for="gloves-thin">Thin nitrile</label></div>
+          <div class="radio-option"><input type="radio" id="gloves-thick" name="gloves" value="thick"><label for="gloves-thick">Thick</label></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Target sizes to test</h2>
+      <div class="form-row">
+        <label>Click to toggle, or add custom values</label>
+        <div class="size-chips" id="size-chips"></div>
+        <div class="inline-input-group">
+          <input type="number" id="custom-size" placeholder="Custom size in px" min="8" max="200">
+          <button class="small-btn" id="add-size-btn">Add</button>
+        </div>
+        <div class="hint">Selected sizes will each be tested across 9 screen zones (corners, edges, center).</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Threshold definitions</h2>
+      <div class="form-row">
+        <div class="threshold-config">
+          <div class="threshold-config-item"><label>Min viable ≥</label><input type="number" id="threshold-min" min="50" max="100" step="1" value="90"><span style="font-size: 0.85rem; color: #666;">%</span></div>
+          <div class="threshold-config-item"><label>Sweet spot ≥</label><input type="number" id="threshold-sweet" min="50" max="100" step="1" value="95"><span style="font-size: 0.85rem; color: #666;">%</span></div>
+          <div class="threshold-config-item"><label>Plateau ≥</label><input type="number" id="threshold-plateau" min="50" max="100" step="1" value="98"><span style="font-size: 0.85rem; color: #666;">%</span></div>
+        </div>
+        <div class="hint">Hit rate thresholds for the recommendations below. Tighter values (e.g. 95/99/100) suit safety-critical interfaces.</div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h2>Mode</h2>
+      <div class="form-row">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0;" for="compare-mode-toggle">
+          <input type="checkbox" id="compare-mode-toggle" style="width: auto; margin: 0; cursor: pointer;">
+          Compare two configurations
+        </label>
+        <div class="hint">Runs two tests back-to-back and shows a side-by-side comparison. After run 1, change conditions (e.g. put on gloves) and start run 2.</div>
+      </div>
+    </div>
+
+    <button class="btn" id="start-btn">Start test</button>
+    <div class="hint" id="trial-count-hint" style="margin-top: 0.75rem; text-align: center;">~3-4 minutes. Tap as you naturally would.</div>
+  </div>
+</div>
+
+<div class="screen" id="test-screen">
+  <div class="test-header">
+    <span id="test-progress-label">Trial 1 of 70</span>
+    <span id="test-stats-label">Hits: 0</span>
+  </div>
+  <div class="test-progress-track"><div class="test-progress-bar" id="test-progress-bar" style="width: 0%"></div></div>
+  <div class="test-area" id="test-area">
+    <div class="test-instruction" id="test-instruction">Tap the black square as it appears.<br>Stay relaxed and tap as you naturally would.<br><br>Tap or click anywhere to begin.</div>
+  </div>
+</div>
+
+<div class="screen" id="between-screen">
+  <div class="between-content">
+    <div class="between-badge">Run 1 complete</div>
+    <div class="between-stat" id="between-hit-rate">—</div>
+    <div class="between-meta" id="between-meta"></div>
+    <hr class="between-divider">
+    <p style="font-size: 0.9rem; color: #444; margin-bottom: 1.5rem; line-height: 1.6;">Change conditions for run 2 in the setup — for example, put on gloves or switch to a different finger — then start the second test.</p>
+    <button class="btn" id="between-continue-btn" style="margin-bottom: 0.5rem;">Set up run 2</button>
+    <button class="btn secondary" id="between-cancel-btn">Cancel comparison</button>
+  </div>
+</div>
+
+<div class="screen" id="results-screen">
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Results</div>
+      <div class="app-subtitle" id="results-subtitle">Loading…</div>
+    </div>
+
+    <div class="verdict">
+      <h2>Recommended thresholds</h2>
+      <div id="threshold-warning"></div>
+      <div id="thresholds-container"></div>
+      <div class="hint" style="margin-top: 0.75rem;">Based on your configured thresholds. Suggestions only — your context may need different values.</div>
+    </div>
+
+    <div class="curve-section">
+      <h2>Hit rate by size</h2>
+      <svg class="curve-svg" id="curve-svg" viewBox="0 0 400 220" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="hint" style="margin-top: 0.75rem;">Look for the "knee" — the size beyond which hit rate stops improving meaningfully.</div>
+    </div>
+
+    <div class="zone-section">
+      <h2>Hit rate by screen zone</h2>
+      <div class="zone-grid" id="zone-grid"></div>
+      <div class="zone-summary">
+        <div class="zone-summary-item"><div class="zone-summary-label">Center</div><div class="zone-summary-value" id="zone-center">—</div></div>
+        <div class="zone-summary-item"><div class="zone-summary-label">Edges</div><div class="zone-summary-value" id="zone-edges">—</div></div>
+        <div class="zone-summary-item"><div class="zone-summary-label">Corners</div><div class="zone-summary-value" id="zone-corners">—</div></div>
+      </div>
+      <div class="hint" style="margin-top: 0.5rem;">Touchscreen accuracy typically degrades at the edges. If your numbers show this, that's the false-perspective and outer-frame ΔE effect.</div>
+    </div>
+
+    <div class="stats-section">
+      <h2>Per-size breakdown</h2>
+      <table id="stats-table">
+        <thead><tr><th>Size</th><th>Trials</th><th>Hit rate</th><th>Avg Δ (px)</th><th>Avg time (ms)</th></tr></thead>
+        <tbody id="stats-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="heatmap-section">
+      <h2>Tap locations</h2>
+      <svg class="scatter-svg" id="scatter-svg" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="heatmap-legend">
+        <span><span class="legend-dot" style="background: #16a34a;"></span>Hit</span>
+        <span><span class="legend-dot" style="background: #dc2626;"></span>Miss</span>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="export-json-btn">Export JSON</button>
+      <button class="btn secondary" id="export-csv-btn">Export CSV</button>
+      <button class="btn secondary" id="export-html-btn">Save HTML report</button>
+      <button class="btn secondary" id="print-btn">Print / Save PDF</button>
+      <button class="btn" id="restart-btn">Run again</button>
+    </div>
+  </div>
+</div>
+
+<div class="screen" id="compare-screen">
+  <div class="container">
+    <div class="app-header">
+      <div class="app-title">Comparison</div>
+      <div class="app-subtitle" id="compare-subtitle"></div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card run-a-accent">
+        <h2 id="compare-heading-a">Run 1</h2>
+        <div class="compare-run-label" id="compare-label-a"></div>
+        <div class="compare-overall" id="compare-overall-a">—</div>
+        <div class="compare-overall-meta" id="compare-meta-a"></div>
+      </div>
+      <div class="compare-card run-b-accent">
+        <h2 id="compare-heading-b">Run 2</h2>
+        <div class="compare-run-label" id="compare-label-b"></div>
+        <div class="compare-overall" id="compare-overall-b">—</div>
+        <div class="compare-overall-meta" id="compare-meta-b"></div>
+      </div>
+    </div>
+
+    <div class="compare-card full">
+      <h2>Hit rate by size</h2>
+      <svg class="curve-svg" id="compare-curve-svg" viewBox="0 0 400 220" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="compare-curve-legend" id="compare-curve-legend"></div>
+      <div class="hint" style="margin-top: 0.5rem;">Look for the "knee" — the size beyond which hit rate stops improving meaningfully.</div>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card">
+        <h2>Zone hit rate</h2>
+        <div class="compare-run-label" id="compare-zone-label-a"></div>
+        <div class="zone-grid" id="compare-zone-a"></div>
+      </div>
+      <div class="compare-card">
+        <h2>Zone hit rate</h2>
+        <div class="compare-run-label" id="compare-zone-label-b"></div>
+        <div class="zone-grid" id="compare-zone-b"></div>
+      </div>
+    </div>
+
+    <div class="compare-card full">
+      <h2>Per-size breakdown</h2>
+      <table>
+        <thead><tr><th>Size</th><th id="compare-th-a">Run 1</th><th id="compare-th-b">Run 2</th><th>Δ hit rate</th></tr></thead>
+        <tbody id="compare-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="compare-export-json-btn">Export JSON</button>
+      <button class="btn secondary" id="compare-export-csv-btn">Export CSV</button>
+      <button class="btn" id="compare-restart-btn">Run again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_SIZES = [24, 32, 40, 48, 56, 64, 80];
+const ZONES = [
+  { name: 'top-left', x: 0.15, y: 0.15, group: 'corner' },
+  { name: 'top-center', x: 0.50, y: 0.15, group: 'edge' },
+  { name: 'top-right', x: 0.85, y: 0.15, group: 'corner' },
+  { name: 'middle-left', x: 0.15, y: 0.50, group: 'edge' },
+  { name: 'center', x: 0.50, y: 0.50, group: 'center' },
+  { name: 'middle-right', x: 0.85, y: 0.50, group: 'edge' },
+  { name: 'bottom-left', x: 0.15, y: 0.85, group: 'corner' },
+  { name: 'bottom-center', x: 0.50, y: 0.85, group: 'edge' },
+  { name: 'bottom-right', x: 0.85, y: 0.85, group: 'corner' },
+];
+const TRIALS_PER_COMBO = 1;
+const BETWEEN_TRIALS_MS = 350;
+
+let state = {
+  tester: {}, trials: [], currentTrialIndex: 0, currentTarget: null,
+  trialStartTime: 0, lastTapPosition: null, startTime: 0,
+  selectedSizes: [...DEFAULT_SIZES],
+  thresholds: { min: 90, sweet: 95, plateau: 98 },
+};
+
+let compareMode = false;
+let sessions = [];
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function updateStartBtn() {
+  const btn = document.getElementById('start-btn');
+  if (sessions.length === 1) btn.textContent = 'Start run 2';
+  else btn.textContent = compareMode ? 'Start run 1' : 'Start test';
+}
+
+function snapshotSession() {
+  return {
+    trials: state.trials.map(t => ({ ...t })),
+    tester: { ...state.tester },
+    selectedSizes: [...state.selectedSizes],
+    thresholds: { ...state.thresholds },
+    duration: ((performance.now() - state.startTime) / 1000).toFixed(1),
+  };
+}
+
+function resetTestState() {
+  state.trials = [];
+  state.currentTrialIndex = 0;
+  state.currentTarget = null;
+  state.lastTapPosition = null;
+  state.startTime = 0;
+  pendingFirstTap = true;
+  acceptingTaps = false;
+  testInstruction.style.display = '';
+  testArea.querySelectorAll('.target, .miss-marker').forEach(el => el.remove());
+}
+
+function sessionLabel(session) {
+  const { finger, gloves, fingerWidthMm } = session.tester;
+  const glovesStr = gloves === 'none' ? 'no gloves' : `${gloves} gloves`;
+  return `${finger} (${fingerWidthMm}mm) · ${glovesStr}`;
+}
+
+function detectDevice() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth, h = window.innerHeight;
+  const ua = navigator.userAgent;
+  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  let type = 'desktop';
+  if (/Mobi|Android/i.test(ua)) type = 'mobile';
+  else if (/Tablet|iPad/i.test(ua)) type = 'tablet';
+  else if (hasTouch) type = 'touchscreen';
+  return { type, viewportWidth: w, viewportHeight: h, devicePixelRatio: dpr, hasTouch, maxTouchPoints: navigator.maxTouchPoints || 0, userAgent: ua.substring(0, 100) };
+}
+
+const device = detectDevice();
+document.getElementById('device-info').innerHTML =
+  `<strong>Device:</strong> ${device.type} · <strong>Viewport:</strong> ${device.viewportWidth}×${device.viewportHeight} · <strong>DPR:</strong> ${device.devicePixelRatio}x · <strong>Touch:</strong> ${device.hasTouch ? 'yes' : 'no'} (${device.maxTouchPoints} pts)`;
+
+function renderSizeChips() {
+  const container = document.getElementById('size-chips');
+  container.innerHTML = '';
+  const allSizes = [...new Set([...DEFAULT_SIZES, ...state.selectedSizes])].sort((a, b) => a - b);
+  allSizes.forEach(size => {
+    const isSelected = state.selectedSizes.includes(size);
+    const isCustom = !DEFAULT_SIZES.includes(size);
+    const chip = document.createElement('button');
+    chip.className = 'size-chip' + (isSelected ? ' selected' : '') + (isCustom ? ' custom' : '');
+    chip.type = 'button';
+    if (isCustom) chip.innerHTML = `${size}px<span class="size-chip-remove" data-size="${size}">×</span>`;
+    else chip.textContent = `${size}px`;
+    chip.dataset.size = size;
+    chip.addEventListener('click', (e) => {
+      if (e.target.classList.contains('size-chip-remove')) {
+        const removeSize = parseInt(e.target.dataset.size, 10);
+        state.selectedSizes = state.selectedSizes.filter(s => s !== removeSize);
+        renderSizeChips(); updateTrialCountHint();
+        e.stopPropagation(); return;
+      }
+      const targetSize = parseInt(chip.dataset.size, 10);
+      if (state.selectedSizes.includes(targetSize)) state.selectedSizes = state.selectedSizes.filter(s => s !== targetSize);
+      else state.selectedSizes.push(targetSize);
+      renderSizeChips(); updateTrialCountHint();
+    });
+    container.appendChild(chip);
+  });
+}
+
+function updateTrialCountHint() {
+  const totalTrials = state.selectedSizes.length * ZONES.length * TRIALS_PER_COMBO;
+  const estMin = Math.max(1, Math.round(totalTrials * 1.5 / 60));
+  const hint = document.getElementById('trial-count-hint');
+  if (state.selectedSizes.length === 0) {
+    hint.textContent = 'Select at least one size to start.';
+    document.getElementById('start-btn').disabled = true;
+  } else {
+    hint.textContent = `${totalTrials} trials · ~${estMin}-${estMin + 1} minutes. Tap as you naturally would.`;
+    document.getElementById('start-btn').disabled = false;
+  }
+}
+
+document.getElementById('add-size-btn').addEventListener('click', () => {
+  const input = document.getElementById('custom-size');
+  const value = parseInt(input.value, 10);
+  if (!value || value < 8 || value > 200) return;
+  if (!state.selectedSizes.includes(value)) {
+    state.selectedSizes.push(value);
+    renderSizeChips(); updateTrialCountHint();
+  }
+  input.value = '';
+});
+
+document.getElementById('custom-size').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('add-size-btn').click(); }
+});
+
+document.getElementById('compare-mode-toggle').addEventListener('change', (e) => {
+  compareMode = e.target.checked;
+  updateStartBtn();
+});
+
+renderSizeChips(); updateTrialCountHint();
+
+function generateTrials() {
+  const trials = [];
+  const sizes = [...state.selectedSizes].sort((a, b) => a - b);
+  for (const size of sizes) {
+    for (const zone of ZONES) {
+      for (let i = 0; i < TRIALS_PER_COMBO; i++) {
+        trials.push({ size, zone: zone.name, zoneGroup: zone.group, zoneX: zone.x, zoneY: zone.y });
+      }
+    }
+  }
+  for (let i = trials.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [trials[i], trials[j]] = [trials[j], trials[i]];
+  }
+  return trials;
+}
+
+document.getElementById('start-btn').addEventListener('click', () => {
+  if (state.selectedSizes.length === 0) return;
+  state.thresholds = {
+    min: parseInt(document.getElementById('threshold-min').value, 10) || 90,
+    sweet: parseInt(document.getElementById('threshold-sweet').value, 10) || 95,
+    plateau: parseInt(document.getElementById('threshold-plateau').value, 10) || 98,
+  };
+  state.tester = {
+    name: document.getElementById('tester-name').value || 'Anonymous',
+    finger: document.querySelector('input[name="finger"]:checked').value,
+    fingerWidthMm: parseInt(document.getElementById('finger-width').value, 10),
+    gloves: document.querySelector('input[name="gloves"]:checked').value,
+    timestamp: new Date().toISOString(), device,
+  };
+  state.trials = generateTrials();
+  state.currentTrialIndex = 0;
+  state.startTime = performance.now();
+  document.getElementById('run2-banner').style.display = 'none';
+  showScreen('test-screen');
+  updateProgressUI();
+});
+
+const testArea = document.getElementById('test-area');
+const testInstruction = document.getElementById('test-instruction');
+let pendingFirstTap = true;
+let acceptingTaps = false;
+
+testArea.addEventListener('pointerdown', handlePointerDown);
+
+function handlePointerDown(e) {
+  e.preventDefault();
+  if (pendingFirstTap) {
+    pendingFirstTap = false;
+    testInstruction.style.display = 'none';
+    nextTrial();
+    return;
+  }
+  if (!acceptingTaps || !state.currentTarget) return;
+  const rect = testArea.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const reactionTime = performance.now() - state.trialStartTime;
+  recordTap(x, y, reactionTime, e.pointerType || 'unknown');
+}
+
+function nextTrial() {
+  if (state.currentTrialIndex >= state.trials.length) { finishTest(); return; }
+  const trial = state.trials[state.currentTrialIndex];
+  const rect = testArea.getBoundingClientRect();
+  const padding = trial.size / 2 + 8;
+  const targetCenterX = padding + (rect.width - 2 * padding) * trial.zoneX;
+  const targetCenterY = padding + (rect.height - 2 * padding) * trial.zoneY;
+  const target = document.createElement('div');
+  target.className = 'target';
+  target.style.width = trial.size + 'px';
+  target.style.height = trial.size + 'px';
+  target.style.left = (targetCenterX - trial.size / 2) + 'px';
+  target.style.top = (targetCenterY - trial.size / 2) + 'px';
+  testArea.appendChild(target);
+  state.currentTarget = { el: target, centerX: targetCenterX, centerY: targetCenterY, size: trial.size, zone: trial.zone, testAreaWidth: rect.width, testAreaHeight: rect.height };
+  state.trialStartTime = performance.now();
+  acceptingTaps = true;
+}
+
+function recordTap(x, y, reactionTime, pointerType) {
+  const t = state.currentTarget;
+  const halfSize = t.size / 2;
+  const dx = x - t.centerX;
+  const dy = y - t.centerY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const inside = Math.abs(dx) <= halfSize && Math.abs(dy) <= halfSize;
+  let fittsDistance = null;
+  if (state.lastTapPosition) {
+    const fdx = x - state.lastTapPosition.x;
+    const fdy = y - state.lastTapPosition.y;
+    fittsDistance = Math.sqrt(fdx * fdx + fdy * fdy);
+  }
+  state.lastTapPosition = { x, y };
+  const trial = state.trials[state.currentTrialIndex];
+  trial.tapX = x; trial.tapY = y;
+  trial.targetCenterX = t.centerX; trial.targetCenterY = t.centerY;
+  trial.deltaX = dx; trial.deltaY = dy; trial.deltaDistance = distance;
+  trial.hit = inside; trial.reactionTimeMs = reactionTime;
+  trial.fittsDistance = fittsDistance; trial.pointerType = pointerType;
+  trial.testAreaWidth = t.testAreaWidth; trial.testAreaHeight = t.testAreaHeight;
+  if (fittsDistance !== null && fittsDistance > 0) {
+    trial.fittsID = Math.log2(fittsDistance / t.size + 1);
+    trial.fittsThroughput = trial.fittsID / (reactionTime / 1000);
+  }
+  acceptingTaps = false;
+  t.el.classList.add(inside ? 'feedback-hit' : 'feedback-miss');
+  if (!inside) {
+    const marker = document.createElement('div');
+    marker.className = 'miss-marker';
+    marker.style.left = x + 'px'; marker.style.top = y + 'px';
+    testArea.appendChild(marker);
+    setTimeout(() => marker.remove(), 400);
+  }
+  setTimeout(() => {
+    t.el.remove();
+    state.currentTrialIndex++;
+    updateProgressUI();
+    setTimeout(nextTrial, BETWEEN_TRIALS_MS - 100);
+  }, 100);
+}
+
+function updateProgressUI() {
+  const total = state.trials.length;
+  const current = state.currentTrialIndex + 1;
+  const hits = state.trials.slice(0, state.currentTrialIndex).filter(t => t.hit).length;
+  document.getElementById('test-progress-label').textContent = `Trial ${Math.min(current, total)} of ${total}`;
+  document.getElementById('test-stats-label').textContent = `Hits: ${hits}`;
+  document.getElementById('test-progress-bar').style.width = (state.currentTrialIndex / total * 100) + '%';
+}
+
+function finishTest() {
+  if (compareMode) {
+    sessions.push(snapshotSession());
+    if (sessions.length === 1) {
+      showBetweenScreen();
+    } else {
+      showScreen('compare-screen');
+      setTimeout(() => renderComparison(sessions[0], sessions[1]), 50);
+    }
+  } else {
+    showScreen('results-screen');
+    setTimeout(computeAndRenderResults, 50);
+  }
+}
+
+function showBetweenScreen() {
+  const s = sessions[0];
+  const hits = s.trials.filter(t => t.hit).length;
+  const total = s.trials.length;
+  document.getElementById('between-hit-rate').textContent = `${(hits / total * 100).toFixed(1)}%`;
+  document.getElementById('between-meta').textContent = `${hits}/${total} hits · ${s.duration}s · ${s.tester.name} · ${sessionLabel(s)}`;
+  showScreen('between-screen');
+}
+
+document.getElementById('between-continue-btn').addEventListener('click', () => {
+  resetTestState();
+  document.getElementById('run2-banner').style.display = 'block';
+  showScreen('setup-screen');
+  updateStartBtn();
+});
+
+document.getElementById('between-cancel-btn').addEventListener('click', () => {
+  sessions = [];
+  compareMode = false;
+  document.getElementById('compare-mode-toggle').checked = false;
+  resetTestState();
+  document.getElementById('run2-banner').style.display = 'none';
+  showScreen('setup-screen');
+  updateStartBtn();
+});
+
+function computeAndRenderResults() {
+  const totalTrials = state.trials.length;
+  const totalHits = state.trials.filter(t => t.hit).length;
+  const totalDuration = ((performance.now() - state.startTime) / 1000).toFixed(1);
+  document.getElementById('results-subtitle').textContent =
+    `${totalHits}/${totalTrials} hits (${(totalHits / totalTrials * 100).toFixed(1)}%) in ${totalDuration}s. Tester: ${state.tester.name}, ${state.tester.finger} (${state.tester.fingerWidthMm}mm), ${state.tester.gloves} gloves.`;
+  const sizes = [...state.selectedSizes].sort((a, b) => a - b);
+  const sizeStats = sizes.map(size => {
+    const sizeTrials = state.trials.filter(t => t.size === size);
+    const hits = sizeTrials.filter(t => t.hit).length;
+    const avgDelta = sizeTrials.reduce((s, t) => s + t.deltaDistance, 0) / sizeTrials.length;
+    const avgTime = sizeTrials.reduce((s, t) => s + t.reactionTimeMs, 0) / sizeTrials.length;
+    return { size, trials: sizeTrials.length, hits, hitRate: hits / sizeTrials.length, avgDelta, avgTime };
+  });
+  const tbody = document.getElementById('stats-tbody');
+  tbody.innerHTML = '';
+  sizeStats.forEach(s => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td class="size-cell">${s.size}px</td><td>${s.trials}</td><td>${(s.hitRate * 100).toFixed(0)}% <span class="hit-rate-bar"><span class="hit-rate-bar-fill" style="width: ${s.hitRate * 100}%;"></span></span></td><td>${s.avgDelta.toFixed(1)}</td><td>${s.avgTime.toFixed(0)}</td>`;
+    tbody.appendChild(row);
+  });
+  const T = state.thresholds;
+  const minViable = sizeStats.find(s => s.hitRate * 100 >= T.min);
+  const sweetSpot = sizeStats.find(s => s.hitRate * 100 >= T.sweet);
+  let plateau = null;
+  for (let i = 0; i < sizeStats.length; i++) {
+    if (sizeStats[i].hitRate * 100 >= T.plateau) { plateau = sizeStats[i]; break; }
+  }
+  const warnEl = document.getElementById('threshold-warning');
+  warnEl.innerHTML = '';
+  if (!minViable) {
+    warnEl.innerHTML = `<div class="verdict-warning">⚠ None of the tested sizes reached ${T.min}% hit rate. Consider adding larger targets, or accept lower hit rate for your context.</div>`;
+  }
+  const tc = document.getElementById('thresholds-container');
+  tc.innerHTML = `
+    <div class="threshold"><div class="threshold-icon min">!</div><div class="threshold-text"><div class="threshold-label">Minimum viable (≥${T.min}%)</div><div class="threshold-value">${minViable ? minViable.size + 'px' : 'Not reached'}</div><div class="threshold-detail">${minViable ? `${(minViable.hitRate * 100).toFixed(0)}% hit rate — usable, but tighter` : 'No size in your test reached this threshold'}</div></div></div>
+    <div class="threshold"><div class="threshold-icon sweet">✓</div><div class="threshold-text"><div class="threshold-label">Sweet spot (≥${T.sweet}%)</div><div class="threshold-value">${sweetSpot ? sweetSpot.size + 'px' : 'Not reached'}</div><div class="threshold-detail">${sweetSpot ? `${(sweetSpot.hitRate * 100).toFixed(0)}% hit rate — comfortable, low miss risk` : 'No size in your test reached this threshold'}</div></div></div>
+    <div class="threshold"><div class="threshold-icon max">∞</div><div class="threshold-text"><div class="threshold-label">Plateau (≥${T.plateau}%)</div><div class="threshold-value">${plateau ? `Above ${plateau.size}px` : 'Not reached'}</div><div class="threshold-detail">${plateau ? "Larger targets don't significantly improve accuracy" : 'No size in your test reached this threshold'}</div></div></div>`;
+  renderCurve(sizeStats);
+  renderZones();
+  renderScatter();
+}
+
+function renderCurve(sizeStats) {
+  const svg = document.getElementById('curve-svg');
+  const w = 400, h = 220;
+  const padL = 40, padR = 16, padT = 16, padB = 32;
+  const innerW = w - padL - padR;
+  const innerH = h - padT - padB;
+  let html = '';
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (innerH / 4) * i;
+    const pct = 100 - i * 25;
+    html += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#e5e5e5" stroke-width="0.5"/>`;
+    html += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="#888" font-family="sans-serif">${pct}%</text>`;
+  }
+  const T = state.thresholds;
+  [{ val: T.min, color: '#f59e0b' }, { val: T.sweet, color: '#16a34a' }, { val: T.plateau, color: '#6366f1' }].forEach(th => {
+    const y = padT + innerH * (1 - th.val / 100);
+    html += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="${th.color}" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>`;
+  });
+  const sizes = sizeStats.map(s => s.size);
+  const xStep = sizes.length > 1 ? innerW / (sizes.length - 1) : 0;
+  sizes.forEach((size, i) => {
+    const x = padL + xStep * i;
+    html += `<text x="${x}" y="${h - padB + 14}" text-anchor="middle" font-size="9" fill="#888" font-family="sans-serif">${size}px</text>`;
+  });
+  if (sizeStats.length > 1) {
+    let pathD = '';
+    sizeStats.forEach((s, i) => {
+      const x = padL + xStep * i;
+      const y = padT + innerH * (1 - s.hitRate);
+      pathD += (i === 0 ? 'M' : 'L') + ` ${x} ${y}`;
+    });
+    html += `<path d="${pathD}" stroke="#1a1a1a" stroke-width="2" fill="none"/>`;
+  }
+  sizeStats.forEach((s, i) => {
+    const x = padL + xStep * i;
+    const y = padT + innerH * (1 - s.hitRate);
+    const pct = s.hitRate * 100;
+    let color = '#999';
+    if (pct >= T.plateau) color = '#6366f1';
+    else if (pct >= T.sweet) color = '#16a34a';
+    else if (pct >= T.min) color = '#f59e0b';
+    html += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="1.5"/>`;
+    html += `<text x="${x}" y="${y - 9}" text-anchor="middle" font-size="9" fill="#1a1a1a" font-weight="600" font-family="sans-serif">${pct.toFixed(0)}%</text>`;
+  });
+  svg.innerHTML = html;
+}
+
+function computeZoneStats(trials) {
+  const zonesByName = {};
+  ZONES.forEach(z => {
+    const zTrials = trials.filter(t => t.zone === z.name);
+    const hits = zTrials.filter(t => t.hit).length;
+    zonesByName[z.name] = { trials: zTrials.length, hits, hitRate: zTrials.length ? hits / zTrials.length : 0, group: z.group };
+  });
+  return zonesByName;
+}
+
+function fillZoneGrid(zonesByName, gridEl) {
+  gridEl.innerHTML = '';
+  ['top-left','top-center','top-right','middle-left','center','middle-right','bottom-left','bottom-center','bottom-right'].forEach(name => {
+    const z = zonesByName[name];
+    const cell = document.createElement('div');
+    cell.className = 'zone-cell';
+    const hue = 120 * z.hitRate;
+    const lightness = 90 - z.hitRate * 25;
+    cell.style.background = `hsl(${hue}, 60%, ${lightness}%)`;
+    cell.innerHTML = `<div class="zone-cell-rate">${(z.hitRate * 100).toFixed(0)}%</div><div class="zone-cell-name">${name.replaceAll('-', ' ')}</div>`;
+    gridEl.appendChild(cell);
+  });
+}
+
+function renderZones() {
+  const zonesByName = computeZoneStats(state.trials);
+  fillZoneGrid(zonesByName, document.getElementById('zone-grid'));
+  const groups = { center: [], edge: [], corner: [] };
+  ZONES.forEach(z => groups[z.group].push(zonesByName[z.name]));
+  function groupRate(g) {
+    const t = g.reduce((s, z) => s + z.trials, 0);
+    const h = g.reduce((s, z) => s + z.hits, 0);
+    return t ? (h / t * 100).toFixed(0) + '%' : '—';
+  }
+  document.getElementById('zone-center').textContent = groupRate(groups.center);
+  document.getElementById('zone-edges').textContent = groupRate(groups.edge);
+  document.getElementById('zone-corners').textContent = groupRate(groups.corner);
+}
+
+function renderScatter() {
+  const svg = document.getElementById('scatter-svg');
+  const validTrial = state.trials.find(t => t.testAreaWidth && t.testAreaHeight);
+  if (!validTrial) {
+    svg.innerHTML = '<text x="200" y="125" text-anchor="middle" font-size="11" fill="#888">No data to display</text>';
+    return;
+  }
+  const aspectRatio = validTrial.testAreaWidth / validTrial.testAreaHeight;
+  const svgW = 400;
+  const svgH = svgW / aspectRatio;
+  svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  let html = '';
+  for (let i = 1; i < 3; i++) {
+    const x = svgW / 3 * i;
+    const y = svgH / 3 * i;
+    html += `<line x1="${x}" y1="0" x2="${x}" y2="${svgH}" stroke="#e5e5e5" stroke-width="0.5" stroke-dasharray="2,2"/>`;
+    html += `<line x1="0" y1="${y}" x2="${svgW}" y2="${y}" stroke="#e5e5e5" stroke-width="0.5" stroke-dasharray="2,2"/>`;
+  }
+  state.trials.forEach(t => {
+    if (t.tapX === undefined) return;
+    const cx = t.tapX / t.testAreaWidth * svgW;
+    const cy = t.tapY / t.testAreaHeight * svgH;
+    const color = t.hit ? '#16a34a' : '#dc2626';
+    const opacity = t.hit ? 0.55 : 0.85;
+    const r = t.hit ? 2 : 3;
+    html += `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${color}" fill-opacity="${opacity}"/>`;
+  });
+  svg.innerHTML = html;
+}
+
+// --- Comparison rendering ---
+
+function computeSizeStatsFromSession(session) {
+  return [...session.selectedSizes].sort((a, b) => a - b).map(size => {
+    const sizeTrials = session.trials.filter(t => t.size === size);
+    const hits = sizeTrials.filter(t => t.hit).length;
+    return { size, trials: sizeTrials.length, hits, hitRate: sizeTrials.length ? hits / sizeTrials.length : 0 };
+  });
+}
+
+function renderComparison(sessionA, sessionB) {
+  const hitsA = sessionA.trials.filter(t => t.hit).length;
+  const hitsB = sessionB.trials.filter(t => t.hit).length;
+  const pctA = (hitsA / sessionA.trials.length * 100).toFixed(1);
+  const pctB = (hitsB / sessionB.trials.length * 100).toFixed(1);
+  const labelA = sessionA.tester.name;
+  const labelB = sessionB.tester.name;
+
+  document.getElementById('compare-subtitle').textContent = `${sessionLabel(sessionA)}  vs  ${sessionLabel(sessionB)}`;
+
+  document.getElementById('compare-heading-a').textContent = labelA;
+  document.getElementById('compare-heading-b').textContent = labelB;
+  document.getElementById('compare-label-a').textContent = sessionLabel(sessionA);
+  document.getElementById('compare-label-b').textContent = sessionLabel(sessionB);
+
+  document.getElementById('compare-overall-a').textContent = `${pctA}%`;
+  document.getElementById('compare-meta-a').textContent = `${hitsA}/${sessionA.trials.length} hits · ${sessionA.duration}s`;
+
+  const delta = (parseFloat(pctB) - parseFloat(pctA)).toFixed(1);
+  const deltaSign = parseFloat(delta) > 0 ? '+' : '';
+  const deltaClass = parseFloat(delta) > 0 ? 'better' : parseFloat(delta) < 0 ? 'worse' : '';
+  const deltaHTML = parseFloat(delta) !== 0
+    ? ` <span class="compare-delta ${deltaClass}">${deltaSign}${delta}pp</span>`
+    : '';
+  document.getElementById('compare-overall-b').innerHTML = `${pctB}%${deltaHTML}`;
+  document.getElementById('compare-meta-b').textContent = `${hitsB}/${sessionB.trials.length} hits · ${sessionB.duration}s`;
+
+  const statsA = computeSizeStatsFromSession(sessionA);
+  const statsB = computeSizeStatsFromSession(sessionB);
+
+  renderComparisonCurve(statsA, statsB, sessionA.thresholds, labelA, labelB);
+
+  document.getElementById('compare-zone-label-a').textContent = labelA;
+  document.getElementById('compare-zone-label-b').textContent = labelB;
+  fillZoneGrid(computeZoneStats(sessionA.trials), document.getElementById('compare-zone-a'));
+  fillZoneGrid(computeZoneStats(sessionB.trials), document.getElementById('compare-zone-b'));
+
+  document.getElementById('compare-th-a').textContent = labelA;
+  document.getElementById('compare-th-b').textContent = labelB;
+  renderComparisonTable(statsA, statsB);
+}
+
+function renderComparisonCurve(statsA, statsB, thresholds, labelA, labelB) {
+  const svg = document.getElementById('compare-curve-svg');
+  const w = 400, h = 220;
+  const padL = 40, padR = 16, padT = 16, padB = 32;
+  const innerW = w - padL - padR;
+  const innerH = h - padT - padB;
+
+  const allSizes = [...new Set([...statsA.map(s => s.size), ...statsB.map(s => s.size)])].sort((a, b) => a - b);
+  const mapA = Object.fromEntries(statsA.map(s => [s.size, s.hitRate]));
+  const mapB = Object.fromEntries(statsB.map(s => [s.size, s.hitRate]));
+  const xStep = allSizes.length > 1 ? innerW / (allSizes.length - 1) : 0;
+
+  let html = '';
+
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (innerH / 4) * i;
+    const pct = 100 - i * 25;
+    html += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#e5e5e5" stroke-width="0.5"/>`;
+    html += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="9" fill="#888" font-family="sans-serif">${pct}%</text>`;
+  }
+
+  const T = thresholds;
+  [{ val: T.min, color: '#f59e0b' }, { val: T.sweet, color: '#16a34a' }, { val: T.plateau, color: '#6366f1' }].forEach(th => {
+    const y = padT + innerH * (1 - th.val / 100);
+    html += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="${th.color}" stroke-width="0.8" stroke-dasharray="3,3" opacity="0.5"/>`;
+  });
+
+  allSizes.forEach((size, i) => {
+    const x = padL + xStep * i;
+    html += `<text x="${x}" y="${h - padB + 14}" text-anchor="middle" font-size="9" fill="#888" font-family="sans-serif">${size}px</text>`;
+  });
+
+  function drawLine(map, color) {
+    const pts = allSizes.filter(s => map[s] !== undefined);
+    if (pts.length > 1) {
+      let d = '';
+      pts.forEach((size, i) => {
+        const x = (padL + xStep * allSizes.indexOf(size)).toFixed(1);
+        const y = (padT + innerH * (1 - map[size])).toFixed(1);
+        d += (i === 0 ? 'M' : 'L') + ` ${x} ${y}`;
+      });
+      html += `<path d="${d}" stroke="${color}" stroke-width="2" fill="none"/>`;
+    }
+    pts.forEach(size => {
+      const x = (padL + xStep * allSizes.indexOf(size)).toFixed(1);
+      const y = (padT + innerH * (1 - map[size])).toFixed(1);
+      html += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="white" stroke-width="1.5"/>`;
+    });
+  }
+
+  drawLine(mapA, '#1a1a1a');
+  drawLine(mapB, '#3b82f6');
+
+  svg.innerHTML = html;
+
+  document.getElementById('compare-curve-legend').innerHTML =
+    `<span><span class="legend-line" style="background:#1a1a1a;"></span>${labelA}</span>` +
+    `<span><span class="legend-line" style="background:#3b82f6;"></span>${labelB}</span>`;
+}
+
+function renderComparisonTable(statsA, statsB) {
+  const allSizes = [...new Set([...statsA.map(s => s.size), ...statsB.map(s => s.size)])].sort((a, b) => a - b);
+  const mapA = Object.fromEntries(statsA.map(s => [s.size, s]));
+  const mapB = Object.fromEntries(statsB.map(s => [s.size, s]));
+  const tbody = document.getElementById('compare-tbody');
+  tbody.innerHTML = '';
+  allSizes.forEach(size => {
+    const a = mapA[size];
+    const b = mapB[size];
+    const pctA = a ? `${(a.hitRate * 100).toFixed(0)}%` : '—';
+    const pctB = b ? `${(b.hitRate * 100).toFixed(0)}%` : '—';
+    let deltaCell = '<td>—</td>';
+    if (a && b) {
+      const d = (b.hitRate - a.hitRate) * 100;
+      const sign = d > 0 ? '+' : '';
+      const color = d > 1 ? '#16a34a' : d < -1 ? '#dc2626' : '#999';
+      deltaCell = `<td style="color:${color}; font-weight:500;">${sign}${d.toFixed(0)}pp</td>`;
+    }
+    const row = document.createElement('tr');
+    row.innerHTML = `<td class="size-cell">${size}px</td><td>${pctA}</td><td>${pctB}</td>${deltaCell}`;
+    tbody.appendChild(row);
+  });
+}
+
+// --- Exports (single run) ---
+
+document.getElementById('export-json-btn').addEventListener('click', () => {
+  const data = { tester: state.tester, config: { sizes: state.selectedSizes, zones: ZONES.map(z => z.name), trialsPerCombo: TRIALS_PER_COMBO, thresholds: state.thresholds }, trials: state.trials, summary: computeSummary() };
+  download(`touch-test-${sanitize(state.tester.name)}-${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
+});
+
+document.getElementById('export-csv-btn').addEventListener('click', () => {
+  const headers = ['trialIndex','size','zone','zoneGroup','targetCenterX','targetCenterY','tapX','tapY','deltaX','deltaY','deltaDistance','hit','reactionTimeMs','pointerType','fittsDistance','fittsID','fittsThroughput'];
+  const rows = state.trials.map((t, i) => headers.map(h => h === 'trialIndex' ? i : (t[h] === undefined ? '' : t[h])).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  download(`touch-test-${sanitize(state.tester.name)}-${Date.now()}.csv`, csv, 'text/csv');
+});
+
+document.getElementById('export-html-btn').addEventListener('click', () => {
+  const resultsHTML = document.getElementById('results-screen').innerHTML;
+  const css = document.querySelector('style').innerHTML;
+  const standalone = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Touch test report - ${state.tester.name}</title>
+<style>${css}
+body { overflow: auto; }
+.screen { position: static !important; display: block !important; padding: 2rem 1.5rem; }
+.actions { display: none; }
+</style></head>
+<body><div class="screen active">${resultsHTML}</div></body></html>`;
+  download(`touch-test-report-${sanitize(state.tester.name)}-${Date.now()}.html`, standalone, 'text/html');
+});
+
+document.getElementById('print-btn').addEventListener('click', () => { window.print(); });
+
+// --- Exports (comparison) ---
+
+document.getElementById('compare-export-json-btn').addEventListener('click', () => {
+  const data = {
+    comparison: true,
+    sessions: sessions.map((s, i) => ({
+      run: i + 1,
+      tester: s.tester,
+      config: { sizes: s.selectedSizes, thresholds: s.thresholds },
+      trials: s.trials,
+    })),
+  };
+  download(`touch-compare-${Date.now()}.json`, JSON.stringify(data, null, 2), 'application/json');
+});
+
+document.getElementById('compare-export-csv-btn').addEventListener('click', () => {
+  const headers = ['run','trialIndex','size','zone','zoneGroup','tapX','tapY','deltaDistance','hit','reactionTimeMs','pointerType'];
+  const rows = sessions.flatMap((s, si) =>
+    s.trials.map((t, i) => [
+      si + 1, i, t.size, t.zone, t.zoneGroup,
+      t.tapX ?? '', t.tapY ?? '',
+      t.deltaDistance !== undefined ? t.deltaDistance.toFixed(1) : '',
+      t.hit ? 1 : 0,
+      t.reactionTimeMs !== undefined ? t.reactionTimeMs.toFixed(0) : '',
+      t.pointerType || '',
+    ].join(','))
+  );
+  download(`touch-compare-${Date.now()}.csv`, [headers.join(','), ...rows].join('\n'), 'text/csv');
+});
+
+document.getElementById('compare-restart-btn').addEventListener('click', () => {
+  sessions = [];
+  compareMode = false;
+  document.getElementById('compare-mode-toggle').checked = false;
+  resetTestState();
+  document.getElementById('run2-banner').style.display = 'none';
+  showScreen('setup-screen');
+  updateStartBtn();
+});
+
+// --- Restart (single run results) ---
+
+document.getElementById('restart-btn').addEventListener('click', () => {
+  sessions = [];
+  compareMode = false;
+  document.getElementById('compare-mode-toggle').checked = false;
+  resetTestState();
+  document.getElementById('run2-banner').style.display = 'none';
+  showScreen('setup-screen');
+  updateStartBtn();
+});
+
+// --- Utilities ---
+
+function sanitize(s) { return (s || 'anon').replace(/[^a-z0-9-_]/gi, '-').substring(0, 30); }
+
+function computeSummary() {
+  return [...state.selectedSizes].sort((a, b) => a - b).map(size => {
+    const sizeTrials = state.trials.filter(t => t.size === size);
+    const hits = sizeTrials.filter(t => t.hit).length;
+    return { size, trials: sizeTrials.length, hits, hitRate: hits / sizeTrials.length, avgDeltaPx: sizeTrials.reduce((s, t) => s + t.deltaDistance, 0) / sizeTrials.length, avgReactionMs: sizeTrials.reduce((s, t) => s + t.reactionTimeMs, 0) / sizeTrials.length };
+  });
+}
+
+function download(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
