@@ -36,7 +36,7 @@ Designing for embedded touchscreens means working with physical constraints: pix
 
 ## Use
 
-1. Open `index.html` in any browser, or visit the [live demo](#)
+1. Open `index.html` in any browser, or visit the [live demo](https://mike-lo.github.io/GoldilocksTap/)
 2. Configure your test (sizes, thresholds, tester info)
 3. Tap targets as they appear — duration depends on configuration (~3-4 minutes for 63 trials with defaults)
 4. Review results, export data
